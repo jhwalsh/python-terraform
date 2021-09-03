@@ -241,6 +241,8 @@ class Terraform:
             subcommand = args.pop(0)
             cmds.append(subcommand)
 
+        variables = kwargs.get("var_file", dict())
+
         for option, value in kwargs.items():
             if "_" in option:
                 option = option.replace("_", "-")
@@ -259,12 +261,9 @@ class Terraform:
                 # since map type sent in string won't work, create temp var file for
                 # variables, and clean it up later
                 elif option == "var":
-                    # We do not create empty var-files if there is no var passed.
-                    # An empty var-file would result in an error: An argument or block definition is required here
-                    if value:
-                        filename = self.temp_var_files.create(value)
-                        cmds += [f"-var-file={filename}"]
-
+                    # If there are variables in the arguments we want to add them to the values in the var_file,
+                    # overriding any matching variables with the ones provided here.
+                    variables.update(value)
                     continue
 
             # simple flag,
@@ -279,6 +278,12 @@ class Terraform:
                 value = "true" if value else "false"
 
             cmds += [f"-{option}={value}"]
+
+        if len(variables) > 0:
+            # We do not create empty var-files if there is no var passed.
+            # An empty var-file would result in an error: An argument or block definition is required here
+            filename = self.temp_var_files.create(variables)
+            cmds += [f"-var-file={filename}"]
 
         cmds += args
         return cmds
